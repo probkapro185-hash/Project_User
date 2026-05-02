@@ -1,0 +1,53 @@
+package repository
+
+import (
+	"context"
+	"project/internal/models"
+
+	"github.com/jackc/pgx/v5"
+)
+
+type UserRepo struct {
+	Conn *pgx.Conn
+}
+
+func NewUserRepo(conn *pgx.Conn) *UserRepo {
+	return &UserRepo{Conn: conn}
+}
+
+func (h *UserRepo) Create(ctx context.Context, Name string, Email string) (models.User, error) {
+	var user models.User
+
+	sql_query := `INSERT INTO users (name,email) VALUES ($1,$2) RETURNING id,name,email`
+	err := h.Conn.QueryRow(ctx, sql_query, Name, Email).Scan(&user.Id, &user.Name, &user.Email)
+
+	return user, err
+}
+
+func (h *UserRepo) GetByID(ctx context.Context, id int) (models.User, error) {
+	var user models.User
+	sql_query := `"SELECT id, name, email FROM users WHERE id = $1", id`
+	err := h.Conn.QueryRow(
+		ctx, sql_query, id).Scan(&user.Id, &user.Name, &user.Email)
+	return user, err
+}
+
+func (h *UserRepo) Update(ctx context.Context, id int, name, email string) (models.User, error) {
+	var user models.User
+	sql_qury := `"UPDATE users SET name=$1, email=$2, updated_at=NOW() WHERE id=$3 RETURNING id, name, email"`
+	err := h.Conn.QueryRow(
+		ctx, sql_qury, name, email, id,
+	).Scan(&user.Id, &user.Name, &user.Email)
+	return user, err
+}
+
+func (h *UserRepo) Delete(ctx context.Context, id int) error {
+	tag, err := h.Conn.Exec(ctx, "DELETE FROM users WHERE id = $1", id)
+	if err != nil {
+		return err
+	}
+	if tag.RowsAffected() == 0 {
+		return pgx.ErrNoRows
+	}
+	return nil
+}

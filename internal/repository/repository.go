@@ -15,11 +15,11 @@ func NewUserRepo(conn *pgx.Conn) *UserRepo {
 	return &UserRepo{Conn: conn}
 }
 
-func (h *UserRepo) Create(ctx context.Context, Name string, Email string) (models.User, error) {
+func (h *UserRepo) Create(ctx context.Context, name string, email string) (models.User, error) {
 	var user models.User
 
 	sql_query := `INSERT INTO users (name,email) VALUES ($1,$2) RETURNING id,name,email`
-	err := h.Conn.QueryRow(ctx, sql_query, Name, Email).Scan(&user.Id, &user.Name, &user.Email)
+	err := h.Conn.QueryRow(ctx, sql_query, name, email).Scan(&user.Id, &user.Name, &user.Email)
 
 	return user, err
 }

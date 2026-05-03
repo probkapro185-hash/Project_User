@@ -51,3 +51,20 @@ func (h *UserRepo) Delete(ctx context.Context, id int) error {
 	}
 	return nil
 }
+
+func (h *UserRepo) Registration(name string, email string, hashpas string) (models.User, error) {
+	var user models.User
+
+	sql_quey := `INSERT INTO users (name,email,password_hash) VALUES ($1,$2,$3) RETURNING id,email,name`
+
+	err := h.Conn.QueryRow(context.Background(), sql_quey, name, email, hashpas).Scan(&user.Id, &user.Email, &user.Name)
+
+	return user, err
+}
+
+func (h *UserRepo) GetByEmail(email string) (models.UserWithPassword, error) {
+	var passhash models.UserWithPassword
+	sql_query := `SELECT id,name,email,password_hash FROM users WHERE email = $1`
+	err := h.Conn.QueryRow(context.Background(), sql_query, email).Scan(&passhash.Id, &passhash.Name, &passhash.Email, &passhash.PasswordHash)
+	return passhash, err
+}

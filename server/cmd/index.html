@@ -1,0 +1,217 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>User API</title>
+    <style>
+        body { font-family: Arial, sans-serif; max-width: 600px; margin: 50px auto; padding: 20px; }
+        .section { display: none; margin-bottom: 30px; padding: 20px; border: 1px solid #ddd; border-radius: 8px; }
+        .section.active { display: block; }
+        input, button { display: block; width: 100%; padding: 10px; margin: 10px 0; font-size: 16px; }
+        button { background: #007bff; color: white; border: none; cursor: pointer; border-radius: 5px; }
+        button:hover { background: #0056b3; }
+        .error { color: red; }
+        .success { color: green; }
+        .nav { display: flex; gap: 10px; margin-bottom: 20px; }
+        .nav button { width: auto; }
+        .nav button.active { background: #0056b3; }
+    </style>
+</head>
+<body>
+    <h1>User Management</h1>
+    
+    <div class="nav">
+        <button onclick="showSection('register-section')">Регистрация</button>
+        <button onclick="showSection('login-section')">Вход</button>
+        <button onclick="showSection('profile-section')" id="profileBtn" disabled>Профиль</button>
+    </div>
+
+    <!-- Регистрация -->
+    <div id="register-section" class="section active">
+        <h2>Регистрация</h2>
+        <input type="text" id="reg-name" placeholder="Имя">
+        <input type="email" id="reg-email" placeholder="Email">
+        <input type="password" id="reg-password" placeholder="Пароль (мин 6 символов)">
+        <button onclick="register()">Зарегистрироваться</button>
+        <p id="register-msg"></p>
+    </div>
+
+    <!-- Вход -->
+    <div id="login-section" class="section">
+        <h2>Вход</h2>
+        <input type="email" id="login-email" placeholder="Email">
+        <input type="password" id="login-password" placeholder="Пароль">
+        <button onclick="login()">Войти</button>
+        <p id="login-msg"></p>
+    </div>
+
+    <!-- Профиль -->
+    <div id="profile-section" class="section">
+        <h2>Мой профиль</h2>
+        <p><strong>ID:</strong> <span id="profile-id"></span></p>
+        <input type="text" id="profile-name" placeholder="Имя">
+        <input type="email" id="profile-email" placeholder="Email">
+        <button onclick="updateProfile()">Обновить</button>
+        <button onclick="deleteProfile()" style="background: #dc3545;">Удалить аккаунт</button>
+        <button onclick="logout()" style="background: #6c757d;">Выйти</button>
+        <p id="profile-msg"></p>
+    </div>
+
+    <script>
+        const API = 'http://localhost:8050';
+        let token = '';
+        let userId = '';
+
+        function showSection(sectionId) {
+            document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
+            document.getElementById(sectionId).classList.add('active');
+        }
+
+        function showMessage(elementId, message, isError) {
+            const el = document.getElementById(elementId);
+            el.textContent = message;
+            el.className = isError ? 'error' : 'success';
+        }
+
+        // Регистрация
+        async function register() {
+            const name = document.getElementById('reg-name').value;
+            const email = document.getElementById('reg-email').value;
+            const password = document.getElementById('reg-password').value;
+
+            try {
+                const res = await fetch(`${API}/auth/register`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ name, email, password })
+                });
+
+                if (!res.ok) {
+                    const text = await res.text();
+                    throw new Error(text);
+                }
+
+                const user = await res.json();
+                showMessage('register-msg', `Успешно! Ваш ID: ${user.id}. Теперь войдите.`, false);
+            } catch (err) {
+                showMessage('register-msg', err.message, true);
+            }
+        }
+
+        // Вход
+        async function login() {
+            const email = document.getElementById('login-email').value;
+            const password = document.getElementById('login-password').value;
+
+            try {
+                const res = await fetch(`${API}/auth/login`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ email, password })
+                });
+
+                if (!res.ok) {
+                    const text = await res.text();
+                    throw new Error(text);
+                }
+
+                const data = await res.json();
+                token = data.token;
+                userId = data.user.id;
+
+                localStorage.setItem('token', token);
+                localStorage.setItem('userId', userId);
+
+                document.getElementById('profileBtn').disabled = false;
+                showMessage('login-msg', 'Вход выполнен!', false);
+                
+                loadProfile();
+                showSection('profile-section');
+            } catch (err) {
+                showMessage('login-msg', err.message, true);
+            }
+        }
+
+        // Загрузка профиля
+        async function loadProfile() {
+            try {
+                const res = await fetch(`${API}/users/${userId}`, {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+
+                if (!res.ok) throw new Error('Ошибка загрузки');
+
+                const user = await res.json();
+                document.getElementById('profile-id').textContent = user.id;
+                document.getElementById('profile-name').value = user.name;
+                document.getElementById('profile-email').value = user.email;
+            } catch (err) {
+                showMessage('profile-msg', err.message, true);
+            }
+        }
+
+        // Обновление профиля
+        async function updateProfile() {
+            const name = document.getElementById('profile-name').value;
+            const email = document.getElementById('profile-email').value;
+
+            try {
+                const res = await fetch(`${API}/users/${userId}`, {
+                    method: 'PUT',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${token}`
+                    },
+                    body: JSON.stringify({ name, email })
+                });
+
+                if (!res.ok) {
+                    const text = await res.text();
+                    throw new Error(text);
+                }
+
+                showMessage('profile-msg', 'Профиль обновлён!', false);
+            } catch (err) {
+                showMessage('profile-msg', err.message, true);
+            }
+        }
+
+        // Удаление аккаунта
+        async function deleteProfile() {
+            if (!confirm('Точно удалить аккаунт?')) return;
+
+            try {
+                const res = await fetch(`${API}/users/${userId}`, {
+                    method: 'DELETE',
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+
+                if (!res.ok) throw new Error('Ошибка удаления');
+
+                logout();
+            } catch (err) {
+                showMessage('profile-msg', err.message, true);
+            }
+        }
+
+        // Выход
+        function logout() {
+            token = '';
+            userId = '';
+            localStorage.clear();
+            document.getElementById('profileBtn').disabled = true;
+            showSection('login-section');
+        }
+
+        // Загружаем токен при обновлении страницы
+        const savedToken = localStorage.getItem('token');
+        const savedUserId = localStorage.getItem('userId');
+        if (savedToken && savedUserId) {
+            token = savedToken;
+            userId = savedUserId;
+            document.getElementById('profileBtn').disabled = false;
+        }
+    </script>
+</body>
+</html>

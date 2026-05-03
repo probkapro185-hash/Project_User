@@ -34,7 +34,7 @@ func (h *UserRepo) GetByID(ctx context.Context, id int) (models.User, error) {
 
 func (h *UserRepo) Update(ctx context.Context, id int, name, email string) (models.User, error) {
 	var user models.User
-	sql_qury := `"UPDATE users SET name=$1, email=$2, updated_at=NOW() WHERE id=$3 RETURNING id, name, email"`
+	sql_qury := `UPDATE users SET name=$1, email=$2 WHERE id=$3 RETURNING id, name, email`
 	err := h.Conn.QueryRow(
 		ctx, sql_qury, name, email, id,
 	).Scan(&user.Id, &user.Name, &user.Email)

@@ -100,7 +100,12 @@ func (h *UserHandler) CreateUser(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *UserHandler) GetUser(w http.ResponseWriter, r *http.Request) {
-	userID := r.Context().Value("userId").(int)
+	userIDValue := r.Context().Value("userID")
+	if userIDValue == nil {
+		http.Error(w, "токен не предоставлен", http.StatusUnauthorized)
+		return
+	}
+	userID := userIDValue.(int)
 	id, _ := strconv.Atoi(r.PathValue("id"))
 
 	if userID != id {

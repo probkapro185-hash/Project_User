@@ -46,6 +46,10 @@ func main() {
 	mux.HandleFunc("POST /auth/register", h.Registr)
 	mux.HandleFunc("POST /auth/login", h.Login)
 
+	mux.HandleFunc("GET /", func(w http.ResponseWriter, r *http.Request) {
+		http.ServeFile(w, r, "server/cmd/index.html")
+	})
+
 	if err := http.ListenAndServe(":8050", mux); err != nil {
 		log.Fatal(err)
 	}

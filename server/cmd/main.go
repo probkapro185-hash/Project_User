@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"os"
 	"project/internal/handlers"
+	"project/internal/middleware"
 	"project/internal/repository"
 	"project/internal/service"
 
@@ -38,10 +39,10 @@ func main() {
 
 	mux := http.NewServeMux()
 
-	mux.HandleFunc("POST /users", h.CreateUser)
-	mux.HandleFunc("GET /users/{id}", h.GetUser)
-	mux.HandleFunc("PUT /users/{id}", h.UpdateUser)
-	mux.HandleFunc("DELETE /users/{id}", h.DeleteUser)
+	mux.HandleFunc("POST /users", middleware.CheckTocken(JwtSecret, h.CreateUser))
+	mux.HandleFunc("GET /users/{id}", middleware.CheckTocken(JwtSecret, h.GetUser))
+	mux.HandleFunc("PUT /users/{id}", middleware.CheckTocken(JwtSecret, h.UpdateUser))
+	mux.HandleFunc("DELETE /users/{id}", middleware.CheckTocken(JwtSecret, h.DeleteUser))
 	mux.HandleFunc("POST /auth/register", h.Registr)
 	mux.HandleFunc("POST /auth/login", h.Login)
 

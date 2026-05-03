@@ -2,17 +2,81 @@ package handlers
 
 import (
 	"encoding/json"
+	"log"
 	"net/http"
 	"project/internal/service"
 	"strconv"
+	"time"
+
+	"github.com/golang-jwt/jwt/v5"
 )
 
 type UserHandler struct {
-	svc *service.UserService
+	svc    *service.UserService
+	jwtKey string
 }
 
-func NewUserHandler(svc *service.UserService) *UserHandler {
-	return &UserHandler{svc: svc}
+func NewUserHandler(svc *service.UserService, jwtKey string) *UserHandler {
+	return &UserHandler{svc: svc, jwtKey: jwtKey}
+}
+
+func (h *UserHandler) Registr(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		w.WriteHeader(http.StatusMethodNotAllowed)
+		return
+	}
+	var req struct {
+		Name     string `json:"name"`
+		Email    string `json:"email"`
+		Password string `json:"password"`
+	}
+	err := json.NewDecoder(r.Body).Decode(&req)
+	if err != nil {
+		http.Error(w, "Некорректный json", http.StatusBadRequest)
+		return
+	}
+	user, err := h.svc.Registration(req.Name, req.Email, req.Password)
+	if err != nil {
+		http.Error(w, "Ошибка валидации", http.StatusBadRequest)
+		return
+	}
+	w.WriteHeader(http.StatusCreated)
+	if err := json.NewEncoder(w).Encode(user); err != nil {
+		log.Printf("ошибка при отправке ответа: %v", err)
+	}
+}
+
+func (h *UserHandler) Login(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		w.WriteHeader(http.StatusMethodNotAllowed)
+		return
+	}
+	var req struct {
+		Email    string `json:"email"`
+		Password string `json:"password"`
+	}
+	json.NewDecoder(r.Body).Decode(&req)
+	user, err := h.svc.Login(req.Email, req.Password)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	token := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{
+		"userId": user.Id,
+		"exp":    time.Now().Add(24 * time.Hour).Unix(),
+	})
+	TokenString, err := token.SignedString([]byte(h.jwtKey))
+	if err != nil {
+		http.Error(w, "ошибка создания токена", http.StatusInternalServerError)
+		return
+	}
+
+	w.WriteHeader(http.StatusOK)
+	json.NewEncoder(w).Encode(map[string]interface{}{
+		"token": TokenString,
+		"user":  user,
+	})
 }
 
 func (h *UserHandler) CreateUser(w http.ResponseWriter, r *http.Request) {

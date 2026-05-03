@@ -22,6 +22,10 @@ func main() {
 	if URL == "" {
 		log.Fatal("CONN_BASE не задана в .env файле")
 	}
+	JwtSecret := os.Getenv("JWT_SECRET")
+	if JwtSecret == "" {
+		log.Fatal("JWT_SECRET не задана в .env файле")
+	}
 	Conn, err := pgx.Connect(context.Background(), URL)
 	if err != nil {
 		log.Fatal(err)
@@ -30,7 +34,7 @@ func main() {
 
 	repo := repository.NewUserRepo(Conn)
 	svc := service.NewUserService(repo)
-	h := handlers.NewUserHandler(svc)
+	h := handlers.NewUserHandler(svc, JwtSecret)
 
 	mux := http.NewServeMux()
 
@@ -38,6 +42,8 @@ func main() {
 	mux.HandleFunc("GET /users/{id}", h.GetUser)
 	mux.HandleFunc("PUT /users/{id}", h.UpdateUser)
 	mux.HandleFunc("DELETE /users/{id}", h.DeleteUser)
+	mux.HandleFunc("POST /auth/register", h.Registr)
+	mux.HandleFunc("POST /auth/login", h.Login)
 
 	if err := http.ListenAndServe(":8050", mux); err != nil {
 		log.Fatal(err)

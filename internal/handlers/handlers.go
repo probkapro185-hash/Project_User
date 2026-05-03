@@ -63,7 +63,7 @@ func (h *UserHandler) Login(w http.ResponseWriter, r *http.Request) {
 	}
 
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{
-		"userId": user.Id,
+		"userID": user.Id,
 		"exp":    time.Now().Add(24 * time.Hour).Unix(),
 	})
 	TokenString, err := token.SignedString([]byte(h.jwtKey))
@@ -100,7 +100,13 @@ func (h *UserHandler) CreateUser(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *UserHandler) GetUser(w http.ResponseWriter, r *http.Request) {
+	userID := r.Context().Value("userId").(int)
 	id, _ := strconv.Atoi(r.PathValue("id"))
+
+	if userID != id {
+		http.Error(w, "доступ запрещён", http.StatusForbidden)
+		return
+	}
 
 	user, err := h.svc.GetByID(r.Context(), id)
 	if err != nil {
@@ -112,7 +118,12 @@ func (h *UserHandler) GetUser(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *UserHandler) UpdateUser(w http.ResponseWriter, r *http.Request) {
+	userID := r.Context().Value("userID").(int)
 	id, _ := strconv.Atoi(r.PathValue("id"))
+	if userID != id {
+		http.Error(w, "доступ запрещён", http.StatusForbidden)
+		return
+	}
 
 	var req struct {
 		Name  string `json:"name"`
@@ -133,7 +144,13 @@ func (h *UserHandler) UpdateUser(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *UserHandler) DeleteUser(w http.ResponseWriter, r *http.Request) {
+
 	id, _ := strconv.Atoi(r.PathValue("id"))
+	userID := r.Context().Value("userID").(int)
+	if userID != id {
+		http.Error(w, "доступ запрещён", http.StatusForbidden)
+		return
+	}
 
 	if err := h.svc.Delete(r.Context(), id); err != nil {
 		http.Error(w, "не найден", http.StatusNotFound)
